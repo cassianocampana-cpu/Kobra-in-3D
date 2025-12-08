@@ -1,0 +1,1 @@
+objetivo desse trabalho é simular o joguinho da cobrinha do clássico Nokia Tijolão e a forma da sua implementação é fazendo um jogo utilizando do OpenGL para criar animações simples em 3D
