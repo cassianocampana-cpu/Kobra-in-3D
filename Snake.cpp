@@ -2,26 +2,23 @@
 #include <cmath>
 #include <iostream>
 #include <string>
-#include "Game.h" // <--- Importante: Conecta com o GameplaySnake.cpp
+#include <cstdio> // NECESSÁRIO PARA SPRINTF (TEXTO)
+#include "Game.h"
 
-// --- VARIÁVEIS DE ESTADO DO SISTEMA ---
+// --- VARIÁVEIS GLOBAIS ---
 Estado estadoAtual = INTRO;
 int score = 0;
 
-// ==========================================
-//      VARIÁVEIS DA INTRO (Seu código)
-// ==========================================
+// --- VARIÁVEIS DA INTRO ---
 const float RAIO_ORBITA = 3.5f;
 const float VELOCIDADE_SNAKE = 3.0f;
-
 float anguloSnake = 0.0f;
 float anguloComida = 180.0f;
 float anguloCamera = 0.0f;
 bool mostrarTexto = true;
 int contadorFrame = 0;
 
-// --- Funções Auxiliares da Intro ---
-
+// --- FUNÇÕES DA INTRO ---
 float normalizarAngulo(float angulo) {
     while (angulo >= 360.0f) angulo -= 360.0f;
     while (angulo < 0.0f) angulo += 360.0f;
@@ -33,14 +30,13 @@ void spawnComidaIntro() {
     anguloComida = normalizarAngulo(anguloSnake + deslocamento);
 }
 
-// Desenha texto na tela (Serve para Intro e Jogo)
 void desenharTexto(const char* texto, float x, float y) {
     glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity();
     gluOrtho2D(0, 800, 0, 600);
     glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
     glDisable(GL_LIGHTING); glDisable(GL_DEPTH_TEST);
     
-    glColor3f(1.0f, 1.0f, 0.0f); // Amarelo
+    glColor3f(1.0f, 1.0f, 0.0f);
     glRasterPos2f(x, y);
     for (const char* c = texto; *c != '\0'; c++) glutBitmapCharacter(GLUT_BITMAP_9_BY_15, *c);
 
@@ -48,17 +44,17 @@ void desenharTexto(const char* texto, float x, float y) {
     glPopMatrix(); glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW);
 }
 
-// ==========================================
-//           LÓGICA DA INTRO
-// ==========================================
-
 void drawIntro() {
-    // Câmera Orbital Suave
     float camX = sin(anguloCamera) * 12.0f;
     float camZ = cos(anguloCamera) * 12.0f;
+    
+// Configura a câmera orbital:
+// (camX, 6.0, camZ) -> Posição do Olho (Gira em círculos)
+// (0.0, 0.0, 0.0)   -> Ponto de Foco (Olha para o centro do cubo azul)
+// (0.0, 1.0, 0.0)   -> Vetor UP (Indica que o eixo Y é "para cima")
     gluLookAt(camX, 6.0, camZ, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
-    // 1. Cubo Central (Azul)
+    // Cubo Central
     glPushMatrix();
         glColor4f(0.0f, 0.5f, 1.0f, 0.4f);
         glutSolidCube(3.0);
@@ -66,7 +62,7 @@ void drawIntro() {
         glutWireCube(3.05);
     glPopMatrix();
 
-    // 2. Snake (Branco)
+    // Snake e Comida Orbitais...
     glPushMatrix();
         glRotatef(anguloSnake, 0.0f, 1.0f, 0.0f);
         glTranslatef(RAIO_ORBITA, 0.0f, 0.0f);
@@ -77,17 +73,14 @@ void drawIntro() {
         glutWireCube(1.01);
     glPopMatrix();
 
-    // 3. Comida (Vermelha)
     glPushMatrix();
         glRotatef(anguloComida, 0.0f, 1.0f, 0.0f);
         glTranslatef(RAIO_ORBITA, 0.0f, 0.0f);
-        glRotatef(contadorFrame * 5.0f, 0.0f, 1.0f, 0.0f);
         glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
         glutSolidSphere(0.4, 20, 20);
     glPopMatrix();
 
-    // UI
-    desenharTexto("SNAKE 3D", 360, 500);
+    desenharTexto("SNAKE 3D REVOLUTION", 320, 500);
     if (mostrarTexto) desenharTexto("PRESS ENTER TO START", 310, 100);
 }
 
@@ -95,81 +88,74 @@ void updateIntro() {
     anguloCamera += 0.005f;
     contadorFrame++;
     if (contadorFrame % 40 == 0) mostrarTexto = !mostrarTexto;
-
-    // Lógica de perseguição orbital
+    
     float diff = anguloComida - anguloSnake;
-    if (diff > 180.0f) diff -= 360.0f;
-    if (diff < -180.0f) diff += 360.0f;
+    if (diff > 180.0f) diff -= 360.0f; if (diff < -180.0f) diff += 360.0f;
 
     if (abs(diff) < VELOCIDADE_SNAKE) {
         anguloSnake = anguloComida;
         spawnComidaIntro();
     } else {
-        if (diff > 0) anguloSnake += VELOCIDADE_SNAKE;
-        else anguloSnake -= VELOCIDADE_SNAKE;
+        if (diff > 0) anguloSnake += VELOCIDADE_SNAKE; else anguloSnake -= VELOCIDADE_SNAKE;
     }
     anguloSnake = normalizarAngulo(anguloSnake);
 }
-
-// ==========================================
-//          SISTEMA PRINCIPAL (GLUT)
-// ==========================================
 
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
 
-    // O "CÉREBRO" QUE ESCOLHE O QUE DESENHAR
     if (estadoAtual == INTRO) {
-        drawIntro(); // Desenha a sua intro bonita
+        drawIntro();
     } 
     else if (estadoAtual == JOGANDO) {
-        desenharCenaJogo(); // <--- Chama o GameplaySnake.cpp
-    }
+        desenharCenaJogo();
+        // MOSTRA O SCORE
+        char buffer[50];
+        sprintf(buffer, "SCORE: %d", score);
+        desenharTexto(buffer, 20, 570);
+    } 
     else if (estadoAtual == GAME_OVER) {
-        desenharCenaJogo(); // Mostra o jogo parado
+        desenharCenaJogo();
         desenharTexto("GAME OVER", 350, 300);
-        desenharTexto("PRESS ENTER TO RESTART", 300, 250);
+        
+        char buffer[50];
+        sprintf(buffer, "FINAL SCORE: %d", score);
+        desenharTexto(buffer, 330, 260);
+        
+        desenharTexto("PRESS ENTER TO RESTART", 300, 220);
     }
-
     glutSwapBuffers();
 }
 
 void timer(int value) {
     if (estadoAtual == INTRO) {
         updateIntro();
-        glutTimerFunc(16, timer, 0); // Intro roda a 60 FPS
+        glutTimerFunc(16, timer, 0); // Intro rápida (60FPS)
     } 
     else if (estadoAtual == JOGANDO) {
-        UpdateJogo(); // <--- Chama o GameplaySnake.cpp
-        glutTimerFunc(100, timer, 0); // Jogo roda mais lento (estilo Snake)
+        UpdateJogo();
+        glutTimerFunc(100, timer, 0); // Jogo na velocidade da cobra (10FPS)
     } 
     else {
-        glutTimerFunc(100, timer, 0); // Game over
+        glutTimerFunc(100, timer, 0); // Game Over loop
     }
     glutPostRedisplay();
 }
 
 void keyboard(unsigned char key, int x, int y) {
-    if (key == 27) exit(0); // ESC
-
-    if (key == 13) { // ENTER
+    if (key == 27) exit(0);
+    if (key == 13) { 
         if (estadoAtual == INTRO || estadoAtual == GAME_OVER) {
-            InitJogo(); // <--- Reseta variáveis lá no GameplaySnake.cpp
+            InitJogo();
             estadoAtual = JOGANDO;
         }
     }
-
-    // Se estiver jogando, manda o input para o outro arquivo
-    if (estadoAtual == JOGANDO) {
-        processarInputJogo(key);
-    }
+    if (estadoAtual == JOGANDO) processarInputJogo(key);
 }
 
 void specialKeys(int key, int x, int y) {
-    if (estadoAtual == JOGANDO) {
-        processarInputSetas(key);
-    }
+    if (estadoAtual == JOGANDO) processarInputSetas(key);
 }
 
 void reshape(int w, int h) {
@@ -194,16 +180,13 @@ int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(800, 600);
-    glutCreateWindow("Snake 3D - Final");
-    
-    init(); // Configura OpenGL
-    
+    glutCreateWindow("Snake 3D Final");
+    init();
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutKeyboardFunc(keyboard);
     glutSpecialFunc(specialKeys);
     glutTimerFunc(0, timer, 0);
-    
     glutMainLoop();
     return 0;
 }
